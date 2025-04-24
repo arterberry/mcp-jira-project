@@ -4,22 +4,22 @@ import config from './config.js';
 import type { JiraIssueData, JiraIssueApiResponse } from './types.js';
 import fetch, { Response, Headers } from 'node-fetch';
 
-export function formatTicketId(ticketInput: string | number): string {
+export function formatTicketId(ticketInput: string): string {
     const projectKey = config.jira.projectKey!;
-    const inputStr = String(ticketInput).trim();
+    const inputStr = ticketInput.trim();
 
-    if (/^\d+$/.test(inputStr)) {
+    if (/^\d+$/.test(inputStr)) {        
         return `${projectKey.toUpperCase()}-${inputStr}`;
     }
     else if (/^[A-Z][A-Z0-9]+-\d+$/i.test(inputStr)) {
         return inputStr.toUpperCase();
     }
     else {
-        throw new Error(`Invalid Jira ticket ID format provided: "${ticketInput}". Expected format like "PROJ-123" or just a number like "123".`);
+        throw new Error(`Invalid Jira ticket ID format provided: "${ticketInput}". Expected format like "PROJ-123".`);
     }
 }
 
-export async function getJiraIssueData(ticketInput: string | number): Promise<JiraIssueData> {
+export async function getJiraIssueData(ticketInput: string): Promise<JiraIssueData> {
     const url = config.jira.url!;
     const email = config.jira.email!;
     const apiToken = config.jira.apiToken!;
@@ -28,7 +28,6 @@ export async function getJiraIssueData(ticketInput: string | number): Promise<Ji
     try {
         sanitizedTicketId = formatTicketId(ticketInput);
     } catch (error) {
-        // console.error(`Error formatting ticket ID "${ticketInput}":`, error); 
         throw error;
     }
 
@@ -41,7 +40,6 @@ export async function getJiraIssueData(ticketInput: string | number): Promise<Ji
         'Content-Type': 'application/json',
     });
 
-    // console.log(`Fetching Jira data for ${sanitizedTicketId} from ${url}`);
     try {
         const response: Response = await fetch(apiUrl, {
             method: 'GET',
@@ -50,11 +48,7 @@ export async function getJiraIssueData(ticketInput: string | number): Promise<Ji
 
         if (!response.ok) {
             let errorBody = '';
-            try {
-                errorBody = await response.text();
-            } catch (e: any) {
-                // console.warn(`Could not read error response body for ${sanitizedTicketId}: ${e.message}`); 
-             }
+            try { errorBody = await response.text(); } catch { /* ignore */ }
             if (response.status === 404) throw new Error(`Jira issue ${sanitizedTicketId} not found.`);
             if (response.status === 401) throw new Error(`Jira authentication failed (401). Check JIRA_EMAIL and JIRA_API_TOKEN.`);
             if (response.status === 403) throw new Error(`Jira authorization failed (403). The user '${email}' may lack permissions for project/issue ${sanitizedTicketId}.`);
@@ -70,11 +64,9 @@ export async function getJiraIssueData(ticketInput: string | number): Promise<Ji
             comments: data.fields.comment?.comments?.map(comment => comment.body) || [],
         };
 
-        // console.log(`Successfully fetched data for ${sanitizedTicketId}`);
         return issueData;
 
     } catch (error: any) {
-        // console.error(`Error during Jira API interaction for ${sanitizedTicketId}:`, error); 
         if (error instanceof Error) {
              throw error;
         } else {
