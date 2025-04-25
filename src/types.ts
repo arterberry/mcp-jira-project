@@ -1,6 +1,5 @@
 // src/types.ts
 
-
 export interface JiraIssueData {
     id: string;
     url: string;
